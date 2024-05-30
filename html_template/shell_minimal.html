@@ -8,7 +8,6 @@
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
       div.emscripten { text-align: center; }
-      div.emscripten_border { border: 1px solid black; }
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
       canvas.emscripten { border: 0px none; background-color: black; }
 
@@ -53,22 +52,19 @@
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
-    <div class="emscripten_border">
-      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
-    </div>
     <hr/>
-    <div class="emscripten">
-      <input type="checkbox" id="resize">Resize canvas
-      <input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer
-      &nbsp;&nbsp;&nbsp;
-      <input type="button" value="Fullscreen" onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, 
-                                                                                document.getElementById('resize').checked)">
-    </div>
-    
+    <form>
+      <label for="array">Array (comma separated):</label>
+      <input type="text" id="array" name="array" value="1,2,3,4,5,6,7,8,9,10">
+      <label for="target">Target:</label>
+      <input type="text" id="target" name="target" value="5">
+      <input type="button" id="runbutton" value="Run">
+    </form>
     <hr/>
+    <h2>Output</h2>
     <textarea class="emscripten" id="output" rows="8"></textarea>
     <hr>
-    <button id="mybutton">My function</button>
+
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
@@ -80,27 +76,12 @@
           if (element) element.value = ''; // clear browser cache
           return (...args) => {
             var text = args.join(' ');
-            // These replacements are necessary if you render to raw HTML
-            //text = text.replace(/&/g, "&amp;");
-            //text = text.replace(/</g, "&lt;");
-            //text = text.replace(/>/g, "&gt;");
-            //text = text.replace('\n', '<br>', 'g');
             console.log(text);
             if (element) {
               element.value += text + "\n";
               element.scrollTop = element.scrollHeight; // focus on bottom
             }
           };
-        })(),
-        canvas: (() => {
-          var canvas = document.getElementById('canvas');
-
-          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
-          // application robust, you may want to override this behavior before shipping!
-          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
-          canvas.addEventListener("webglcontextlost", (e) => { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
-
-          return canvas;
         })(),
         setStatus: (text) => {
           if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
@@ -138,13 +119,25 @@
           if (text) console.error('[post-exception status] ' + text);
         };
       };
-      document.getElementById("mybutton").addEventListener("click", () => {
-        const result = Module.ccall(
-            "myFunction", // name of C function
+      document.getElementById("runbutton").addEventListener("click", () => {
+        let arrayString = document.getElementById('array').value;
+        let target = document.getElementById('target').value;
+        let array = arrayString.split(',').map(Number);
+        let arrayLength = array.length;
+        let arrayPointer = Module._malloc(arrayLength * 4); // assumes each element is a 32-bit integer
+
+        for (let i = 0; i < arrayLength; i++) {
+          Module.setValue(arrayPointer + i * 4, array[i], 'i32');
+        }
+
+        Module.ccall(
+            'run', // name of C function
             null, // return type
-            null, // argument types
-            null, // arguments
+            ['number', 'number', 'number'], // argument types
+            [arrayLength, arrayPointer, target] // arguments
         );
+
+        Module._free(arrayPointer);
       });
     </script>
     {{{ SCRIPT }}}

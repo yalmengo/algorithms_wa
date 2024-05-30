@@ -1,6 +1,6 @@
 # Variables
 CC = emcc
-CFLAGS = -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall']"
+CFLAGS = -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall', 'setValue']" -s "EXPORTED_FUNCTIONS=['_malloc', '_free', '_main']"
 SHELL_FILE = html_template/shell_minimal.html
 SRC = main.c
 OUT = index.html

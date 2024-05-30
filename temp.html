@@ -1,0 +1,20 @@
+document.getElementById("runbutton").addEventListener("click", () => {
+    let arrayString = document.getElementById('array').value;
+    let target = document.getElementById('target').value;
+    let array = arrayString.split(',').map(Number);
+    let arrayLength = array.length;
+    let arrayPointer = Module._malloc(arrayLength * 4); // assumes each element is a 32-bit integer
+
+    for (let i = 0; i < arrayLength; i++) {
+        Module.setValue(arrayPointer + i * 4, array[i], 'i32');
+    }
+
+    Module.ccall(
+        'run', // name of C function
+        null, // return type
+        ['number', 'number', 'number'], // argument types
+        [arrayLength, arrayPointer, target] // arguments
+    );
+
+    Module._free(arrayPointer);
+  });
