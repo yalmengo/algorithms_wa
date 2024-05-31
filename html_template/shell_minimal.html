@@ -103,7 +103,7 @@
     </div>
     <div class="form-group">
       <label for="array">Array (comma separated):</label>
-      <input type="text" id="array" name="array" value="1,2,3,4,5,6,7,8,9,10">
+      <input type="text" id="array" name="array" value="10,9,8,7,6,5,4,3,2,1">
     </div>
     <div class="form-group">
       <label for="target">Target:</label>
@@ -113,7 +113,7 @@
       <input type="button" id="runbutton" value="Run">
     </div>
     <h2>Output</h2>
-    <textarea class="emscripten" id="output" rows="8"></textarea>
+    <textarea class="emscripten" id="output" rows="40"></textarea>
   </div>
   <script type='text/javascript'>
     var Module = {
@@ -132,6 +132,9 @@
     };
 
     document.getElementById("runbutton").addEventListener("click", () => {
+      // Clean output
+      document.getElementById('output').value = '';
+      
       if (typeof Module._malloc !== 'function') {
         console.error('Emscripten runtime is not ready');
         return;

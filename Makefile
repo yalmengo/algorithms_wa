@@ -1,6 +1,6 @@
 # Variables
 CC = emcc
-CFLAGS = -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall', 'setValue']" -s "EXPORTED_FUNCTIONS=['_malloc', '_free', '_main']"
+CFLAGS = -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall', 'setValue']" -s "EXPORTED_FUNCTIONS=['_malloc', '_free', '_main']" -pthread -sPTHREAD_POOL_SIZE=5
 SHELL_FILE = html_template/shell_minimal.html
 SRC = main.c
 OUT = dist/index.html

@@ -1,21 +1,141 @@
 #include <stdio.h>
+#include <string.h>
+#include <pthread.h>
 #include <emscripten/emscripten.h>
-
-int main() {
-    printf("Waiting for inputs...\n");
-    return 0;
-}
-
+#include "algorithms.c"
 #define EXTERN
 
-void printArray(int arr[], int size) {
+typedef struct {
+    int* array;
+    int size;
+} SortArgs;
+
+typedef struct {
+    int* array;
+    int size;
+    int target;
+} SearchArgs;
+
+void printArray(int arr[], int size, char* from)
+{
+    printf("\n--> Array from %s: ", from);
     for (int i = 0; i < size; i++) {
         printf("%d ", arr[i]);
     }
     printf("\n");
 }
 
-EXTERN EMSCRIPTEN_KEEPALIVE void run(int size, int array[], int target) {
-    printArray(array, size);
-    printf("Target: %d\n", target);
+void* printBubbleSort(void* args)
+{
+    SortArgs* sortArgs = (SortArgs*)args;
+
+    int copiedArray[sortArgs->size];
+    memcpy(copiedArray, sortArgs->array, sizeof(int) * sortArgs->size);
+    printf("\nBubble Sort started...\n");
+    bubbleSort(copiedArray, sortArgs->size);
+    printArray(copiedArray, sortArgs->size, "Bubble Sort");
+
+    return NULL;
+}
+
+void* printQuickSort(void* args)
+{
+    SortArgs* sortArgs = (SortArgs*)args;
+    int copiedArray[sortArgs->size];
+    memcpy(copiedArray, sortArgs->array, sizeof(int) * sortArgs->size);
+    printf("\nQuick Sort started...\n");
+    quickSort(copiedArray, 0, sortArgs->size - 1);
+    printArray(copiedArray, sortArgs->size, "Quick Sort");
+
+    return NULL;
+}
+
+void* printInsertionSort(void* args)
+{
+    SortArgs* sortArgs = (SortArgs*)args;
+    int copiedArray[sortArgs->size];
+    memcpy(copiedArray, sortArgs->array, sizeof(int) * sortArgs->size);
+    printf("\nInsertion Sort started...\n");
+    insertionSort(copiedArray, sortArgs->size);
+    printArray(copiedArray, sortArgs->size, "Insertion Sort");
+
+    return NULL;
+}
+
+void* printSequentialSearch(void* args) {
+    SearchArgs* searchArgs = (SearchArgs*)args;
+    int copiedArray[searchArgs->size];
+    memcpy(copiedArray, searchArgs->array, sizeof(int) * searchArgs->size);
+    int index = sequentialSearch(copiedArray, searchArgs->size, searchArgs->target);
+    if (index != -1) {
+        printf("\nElement %d found at index %d using Sequential Search.\n", searchArgs->target, index);
+    } else {
+        printf("\nElement %d not found in the array using Sequential Search.\n", searchArgs->target);
+    }
+
+    return NULL;
+}
+
+void* printBinarySearch(void* args) {
+    SearchArgs* searchArgs = (SearchArgs*)args;
+    int copiedArray[searchArgs->size];
+    memcpy(copiedArray, searchArgs->array, sizeof(int) * searchArgs->size);
+    int index = binarySearch(copiedArray, 0, searchArgs->size - 1, searchArgs->target);
+    if (index != -1) {
+        printf("\nElement %d found at index %d using Binary Search.\n", searchArgs->target, index);
+    } else {
+        printf("\nElement %d not found in the array using Binary Search.\n", searchArgs->target);
+    }
+
+    return NULL;
+}
+
+int main()
+{
+    printf("Waiting for inputs...\n\n");
+    return 0;
+}
+
+pthread_t createThread(void* (*function)(void*), void* args) {
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, function, args)) {
+        fprintf(stderr, "Error creating thread\n");
+        exit(1);
+    }
+    return thread;
+}
+
+// EMSCRIPTEN_KEEPALIVE is to avoid this function from being deleted since it's not being called from main
+EXTERN EMSCRIPTEN_KEEPALIVE void run(int size, int array[], int target)
+{
+    printf("\nRunning Sorting Algorithms in parallel...\n");
+    pthread_t threads_sort[3];
+
+    SortArgs sortArgs = {array, size};
+    threads_sort[0] = createThread(printBubbleSort, &sortArgs);
+    threads_sort[1] = createThread(printQuickSort, &sortArgs);
+    threads_sort[2] = createThread(printInsertionSort, &sortArgs);
+
+    for (int i = 0; i < 3; i++) {
+        pthread_join(threads_sort[i], NULL);
+    }
+
+    // Sort array so Binary Search can work correctly, using Quick Sort because it's "faster" 😎
+    quickSort(array, 0, size - 1);
+
+    printf("\nSorting algorithms finished...\n");
+    printArray(array, size, "Main (this will be passed to search algorithms)");
+
+    printf("\nRunning Search Algorithms in parallel...\n");
+    pthread_t threads_search[2];
+
+    SearchArgs searchArgs = {array, size, target};
+    threads_search[1] = createThread(printSequentialSearch, &searchArgs);
+    threads_search[0] = createThread(printBinarySearch, &searchArgs);
+
+    for (int i = 0; i < 2; i++) {
+        pthread_join(threads_search[i], NULL);
+    }
+
+    printf("\nSearch algorithms finished! \n");
 }
