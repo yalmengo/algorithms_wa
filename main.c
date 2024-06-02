@@ -3,6 +3,8 @@
 #include <pthread.h>
 #include <emscripten/emscripten.h>
 #include "algorithms.c"
+#include <time.h>
+
 #define EXTERN
 
 typedef struct {
@@ -68,9 +70,9 @@ void* printSequentialSearch(void* args) {
     memcpy(copiedArray, searchArgs->array, sizeof(int) * searchArgs->size);
     int index = sequentialSearch(copiedArray, searchArgs->size, searchArgs->target);
     if (index != -1) {
-        printf("\nElement %d found at index %d using Sequential Search.\n", searchArgs->target, index);
+        printf("\nElement %d was found at index %d using Sequential Search.\n", searchArgs->target, index);
     } else {
-        printf("\nElement %d not found in the array using Sequential Search.\n", searchArgs->target);
+        printf("\nElement %d is not found in the array using Sequential Search.\n", searchArgs->target);
     }
 
     return NULL;
@@ -82,9 +84,9 @@ void* printBinarySearch(void* args) {
     memcpy(copiedArray, searchArgs->array, sizeof(int) * searchArgs->size);
     int index = binarySearch(copiedArray, 0, searchArgs->size - 1, searchArgs->target);
     if (index != -1) {
-        printf("\nElement %d found at index %d using Binary Search.\n", searchArgs->target, index);
+        printf("\nElement %d was found at index %d using Binary Search.\n", searchArgs->target, index);
     } else {
-        printf("\nElement %d not found in the array using Binary Search.\n", searchArgs->target);
+        printf("\nElement %d is not found in the array using Binary Search.\n", searchArgs->target);
     }
 
     return NULL;
@@ -108,34 +110,41 @@ pthread_t createThread(void* (*function)(void*), void* args) {
 // EMSCRIPTEN_KEEPALIVE is to avoid this function from being deleted since it's not being called from main
 EXTERN EMSCRIPTEN_KEEPALIVE void run(int size, int array[], int target)
 {
-    printf("\nRunning Sorting Algorithms in parallel...\n");
-    pthread_t threads_sort[3];
+    int sortedArray[size];
+    memcpy(sortedArray, array, sizeof(int) * size);
+    printf("\nSorting array to use it in Search algorithms...\n");
+     // Sort array so Binary Search can work correctly, using Quick Sort because it's "faster" 😎
+    quickSort(sortedArray, 0, size - 1);
+    printArray(sortedArray, size, "Main (this will be passed to search algorithms only)");
+    printf("\n...\n");
+    printf("\nRunning all Sorting and Search Algorithms in parallel...\n");
+
+    // Start timer
+    clock_t start, end;
+    double cpu_time_used;
+    start = clock();
+
+    // Create threads for algorithms
+    pthread_t threads[5];
 
     SortArgs sortArgs = {array, size};
-    threads_sort[0] = createThread(printBubbleSort, &sortArgs);
-    threads_sort[1] = createThread(printQuickSort, &sortArgs);
-    threads_sort[2] = createThread(printInsertionSort, &sortArgs);
+    SearchArgs searchArgs = {sortedArray, size, target};
 
-    for (int i = 0; i < 3; i++) {
-        pthread_join(threads_sort[i], NULL);
+    threads[0] = createThread(printBubbleSort, &sortArgs);
+    threads[1] = createThread(printQuickSort, &sortArgs);
+    threads[2] = createThread(printInsertionSort, &sortArgs);
+    threads[3] = createThread(printSequentialSearch, &searchArgs);
+    threads[4] = createThread(printBinarySearch, &searchArgs);
+
+    for (int i = 0; i < 5; i++) {
+        pthread_join(threads[i], NULL);
     }
 
-    // Sort array so Binary Search can work correctly, using Quick Sort because it's "faster" 😎
-    quickSort(array, 0, size - 1);
+    printf("\nAll algorithms finished!\n");
 
-    printf("\nSorting algorithms finished...\n");
-    printArray(array, size, "Main (this will be passed to search algorithms)");
+    // End timer
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
-    printf("\nRunning Search Algorithms in parallel...\n");
-    pthread_t threads_search[2];
-
-    SearchArgs searchArgs = {array, size, target};
-    threads_search[1] = createThread(printSequentialSearch, &searchArgs);
-    threads_search[0] = createThread(printBinarySearch, &searchArgs);
-
-    for (int i = 0; i < 2; i++) {
-        pthread_join(threads_search[i], NULL);
-    }
-
-    printf("\nSearch algorithms finished! \n");
+    printf("Time taken: %f seconds\n", cpu_time_used);
 }
